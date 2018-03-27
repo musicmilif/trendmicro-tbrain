@@ -217,6 +217,7 @@ if __name__ == '__main__':
     data = pd.concat([data, new_features], axis=1)
 
 
+    # Set 
     MAX_SEQ = 500
     MAX_CUST = np.max(data['CustomerID'].apply(max)) + 1
     MAX_PROD = np.max(data['ProductID'].apply(max)) + 1

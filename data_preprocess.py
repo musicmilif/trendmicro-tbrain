@@ -10,7 +10,7 @@ from sklearn.model_selection import StratifiedKFold
 if __name__ == '__main__':
 
     # Read log datas and file_id datas
-    dir_path = '/disk/Tbrain/'
+    dir_path = './'
     train_set = pd.read_csv(dir_path+'training-set.csv', header=None, names=['FileID', 'Target'])
     test_set = pd.read_csv(dir_path+'testing-set.csv', header=None, names=['FileID', 'Target'])
     train_ex = pd.read_table(dir_path+'exception/exception_train.txt', header=None, names=['FileID'])

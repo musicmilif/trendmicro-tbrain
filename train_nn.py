@@ -43,10 +43,10 @@ def nn_model():
 
 
 if __name__ == '__main__':
+    data_path = './'
     n_folds = 10
     n_bags = 30
     predsN = 0
-    data_path = '/disk/Tbrain/'
     X_data = load_sparse_csr(data_path+'new_process_v1.npz')
     data = pd.read_csv(data_path+'data.csv')
 

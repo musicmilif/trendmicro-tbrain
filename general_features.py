@@ -93,7 +93,7 @@ if __name__ == '__main__':
     n_folds = 10
     
     # Read log datas and file_id datas
-    data_path = '/disk/Tbrain/'
+    data_path = './'
     log_data = pd.read_csv(data_path+'log_data.csv')
     log_data['QueryTS'] = pd.to_datetime(log_data['QueryTS'], format='%Y-%m-%d %H:%M:%S')
     log_data['ProductID'] = log_data['ProductID'].astype(str)

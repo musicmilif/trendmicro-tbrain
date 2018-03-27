@@ -18,7 +18,7 @@ def load_sparse_csr(filename):
 
 
 if __name__ == '__main__':
-    data_path = '/disk/Tbrain/'
+    data_path = './'
     X_als = load_sparse_csr(data_path+'als_v1.npz')
     X_cust = load_sparse_csr(data_path+'cust_v1.npz')
     X_prod = load_sparse_csr(data_path+'prod_v1.npz')
