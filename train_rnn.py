@@ -13,7 +13,6 @@ from sklearn.metrics import roc_auc_score
 
 import wordbatch
 from wordbatch.extractors import WordBag, WordHash
-from wordbatch.models import FM_FTRL
 
 import keras.backend as K
 from keras.models import Model
@@ -24,114 +23,9 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
 
-def get_keras_data(df):
-    X = {
-        'customerid': pad_sequences(df['CustomerID'], maxlen=MAX_SEQ),
-        'productid': pad_sequences(df['ProductID'], maxlen=MAX_SEQ),
-        'filediffgcust': pad_sequences(df['FileDiffgCust'], maxlen=MAX_SEQ),
-        'TargetCust_mm': np.array(df[['TargetCust_mean_mean']]),
-        'TargetCust_ms': np.array(df[['TargetCust_mean_std']]),
-        'TargetCust_sm': np.array(df[['TargetCust_std_mean']]),
-        'TargetCust_ss': np.array(df[['TargetCust_std_std']]),
-        'file_count': np.array(df[["FileCount"]]),
-        'cust_count': np.array(df[["CustCount"]]),
-        'prod_count': np.array(df[["ProdCount"]]),  
-        'num_dig': np.array(df[["NumDig"]]),
-        'num_a': np.array(df[["NumA"]]),
-        'num_b': np.array(df[["NumB"]]),
-        'num_c': np.array(df[["NumC"]]),
-        'num_d': np.array(df[["NumD"]]),
-        'num_e': np.array(df[["NumE"]]),
-    }
-    return X
-
-
-def rnn_model(df, lr=0.001, decay=0.0):    
-    # Inputs
-    customerid = Input(shape=[df['customerid'].shape[1]], name='customerid')
-    productid = Input(shape=[df['productid'].shape[1]], name='productid')
-    filediffgcust = Input(shape=[df['filediffgcust'].shape[1]], name='filediffgcust')
-    file_count = Input(shape=[1], name='file_count')
-    cust_count = Input(shape=[1], name='cust_count')
-    prod_count = Input(shape=[1], name='prod_count')
-    num_dig = Input(shape=[1], name='num_dig')
-    num_a = Input(shape=[1], name='num_a')
-    num_b = Input(shape=[1], name='num_b')
-    num_c = Input(shape=[1], name='num_c')
-    num_d = Input(shape=[1], name='num_d')
-    num_e = Input(shape=[1], name='num_e')
-    TargetCust_mm = Input(shape=[1], name='TargetCust_mm')
-    TargetCust_ms = Input(shape=[1], name='TargetCust_ms')
-    TargetCust_sm = Input(shape=[1], name='TargetCust_sm')
-    TargetCust_ss = Input(shape=[1], name='TargetCust_ss')
-
-    # Embeddings layers
-    emb_customerid = Embedding(MAX_CUST, 80)(customerid)
-    emb_productid = Embedding(MAX_PROD, 5)(productid)
-    emb_filediffgcust = Embedding(MAX_TIME, 20)(filediffgcust)
-    emb_file_count = Embedding(MAX_FILE, 5)(file_count)
-    emb_cust_count = Embedding(MAX_FILE, 5)(cust_count)
-    emb_prod_count = Embedding(MAX_FILE, 5)(prod_count)
-    emb_dig_count = Embedding(MAX_COUT, 3)(num_dig)
-    emb_a_count = Embedding(MAX_COUT, 3)(num_a)
-    emb_b_count = Embedding(MAX_COUT, 3)(num_b)
-    emb_c_count = Embedding(MAX_COUT, 3)(num_c)
-    emb_d_count = Embedding(MAX_COUT, 3)(num_d)
-    emb_e_count = Embedding(MAX_COUT, 3)(num_e)
-
-    # rnn layers
-    rnn_layer1 = GRU(32)(emb_customerid)
-    rnn_layer2 = GRU(4)(emb_productid)
-    rnn_layer3 = GRU(8)(emb_filediffgcust)
-    
-    # FastText
-    fast_layer1 = GlobalAveragePooling1D()(emb_customerid)
-    fast_layer2 = GlobalAveragePooling1D()(emb_productid)
-    fast_layer3 = GlobalAveragePooling1D()(emb_filediffgcust)
-    
-    # main layers
-    main_l = concatenate([
-        TargetCust_mm,
-        TargetCust_ms,
-        TargetCust_sm,
-        TargetCust_ss,
-        Flatten()(emb_file_count),
-        Flatten()(emb_cust_count),
-        Flatten()(emb_prod_count),
-        Flatten()(emb_dig_count),
-        Flatten()(emb_a_count),
-        Flatten()(emb_b_count),
-        Flatten()(emb_c_count),
-        Flatten()(emb_d_count),        
-        Flatten()(emb_e_count),        
-        fast_layer1,
-        fast_layer2,
-        fast_layer3,
-        rnn_layer1,
-        rnn_layer2,
-        rnn_layer3,
-    ])
-
-    main_l = Dropout(0.3) (Dense(1024)(main_l))
-    main_l = BatchNormalization()(main_l)
-    main_l = Activation('elu')(main_l)
-
-    main_l = Dropout(0.2) (Dense(32)(main_l))
-    main_l = Activation('elu')(main_l)
-
-    output = Dense(1, activation="sigmoid") (main_l)
-    model = Model([customerid, productid, filediffgcust, file_count, cust_count, prod_count, 
-                   TargetCust_mm, TargetCust_ms, TargetCust_sm, TargetCust_ss,
-                   num_dig, num_a, num_b, num_c, num_d, num_e], output)
-
-    optimizer = Adam(lr=lr, decay=decay)
-    model.compile(loss="binary_crossentropy", optimizer=optimizer)
-
-    return model
-
 
 if __name__ == '__main__':
-    dir_path = '/disk/Tbrain/'
+    dir_path = './'
     train_set = pd.read_csv(dir_path+'training-set.csv', header=None, names=['FileID', 'Target'])
     test_set = pd.read_csv(dir_path+'testing-set.csv', header=None, names=['FileID', 'Target'])
     train_ex = pd.read_table(dir_path+'exception/exception_train.txt', header=None, names=['FileID'])
@@ -216,7 +110,6 @@ if __name__ == '__main__':
 
     data = pd.concat([data, new_features], axis=1)
 
-
     # Set 
     MAX_SEQ = 500
     MAX_CUST = np.max(data['CustomerID'].apply(max)) + 1
@@ -232,6 +125,112 @@ if __name__ == '__main__':
                     data['NumC'].max(),
                     data['NumD'].max(),
                     data['NumE'].max()]) + 1
+
+
+    def get_keras_data(df):
+        X = {
+            'customerid': pad_sequences(df['CustomerID'], maxlen=MAX_SEQ),
+            'productid': pad_sequences(df['ProductID'], maxlen=MAX_SEQ),
+            'filediffgcust': pad_sequences(df['FileDiffgCust'], maxlen=MAX_SEQ),
+            'TargetCust_mm': np.array(df[['TargetCust_mean_mean']]),
+            'TargetCust_ms': np.array(df[['TargetCust_mean_std']]),
+            'TargetCust_sm': np.array(df[['TargetCust_std_mean']]),
+            'TargetCust_ss': np.array(df[['TargetCust_std_std']]),
+            'file_count': np.array(df[["FileCount"]]),
+            'cust_count': np.array(df[["CustCount"]]),
+            'prod_count': np.array(df[["ProdCount"]]),  
+            'num_dig': np.array(df[["NumDig"]]),
+            'num_a': np.array(df[["NumA"]]),
+            'num_b': np.array(df[["NumB"]]),
+            'num_c': np.array(df[["NumC"]]),
+            'num_d': np.array(df[["NumD"]]),
+            'num_e': np.array(df[["NumE"]]),
+        }
+        return X
+
+
+    def rnn_model(df, lr=0.001, decay=0.0):    
+        # Inputs
+        customerid = Input(shape=[df['customerid'].shape[1]], name='customerid')
+        productid = Input(shape=[df['productid'].shape[1]], name='productid')
+        filediffgcust = Input(shape=[df['filediffgcust'].shape[1]], name='filediffgcust')
+        file_count = Input(shape=[1], name='file_count')
+        cust_count = Input(shape=[1], name='cust_count')
+        prod_count = Input(shape=[1], name='prod_count')
+        num_dig = Input(shape=[1], name='num_dig')
+        num_a = Input(shape=[1], name='num_a')
+        num_b = Input(shape=[1], name='num_b')
+        num_c = Input(shape=[1], name='num_c')
+        num_d = Input(shape=[1], name='num_d')
+        num_e = Input(shape=[1], name='num_e')
+        TargetCust_mm = Input(shape=[1], name='TargetCust_mm')
+        TargetCust_ms = Input(shape=[1], name='TargetCust_ms')
+        TargetCust_sm = Input(shape=[1], name='TargetCust_sm')
+        TargetCust_ss = Input(shape=[1], name='TargetCust_ss')
+
+        # Embeddings layers
+        emb_customerid = Embedding(MAX_CUST, 80)(customerid)
+        emb_productid = Embedding(MAX_PROD, 5)(productid)
+        emb_filediffgcust = Embedding(MAX_TIME, 20)(filediffgcust)
+        emb_file_count = Embedding(MAX_FILE, 5)(file_count)
+        emb_cust_count = Embedding(MAX_FILE, 5)(cust_count)
+        emb_prod_count = Embedding(MAX_FILE, 5)(prod_count)
+        emb_dig_count = Embedding(MAX_COUT, 3)(num_dig)
+        emb_a_count = Embedding(MAX_COUT, 3)(num_a)
+        emb_b_count = Embedding(MAX_COUT, 3)(num_b)
+        emb_c_count = Embedding(MAX_COUT, 3)(num_c)
+        emb_d_count = Embedding(MAX_COUT, 3)(num_d)
+        emb_e_count = Embedding(MAX_COUT, 3)(num_e)
+
+        # rnn layers
+        rnn_layer1 = GRU(32)(emb_customerid)
+        rnn_layer2 = GRU(4)(emb_productid)
+        rnn_layer3 = GRU(8)(emb_filediffgcust)
+        
+        # FastText
+        fast_layer1 = GlobalAveragePooling1D()(emb_customerid)
+        fast_layer2 = GlobalAveragePooling1D()(emb_productid)
+        fast_layer3 = GlobalAveragePooling1D()(emb_filediffgcust)
+        
+        # main layers
+        main_l = concatenate([
+            TargetCust_mm,
+            TargetCust_ms,
+            TargetCust_sm,
+            TargetCust_ss,
+            Flatten()(emb_file_count),
+            Flatten()(emb_cust_count),
+            Flatten()(emb_prod_count),
+            Flatten()(emb_dig_count),
+            Flatten()(emb_a_count),
+            Flatten()(emb_b_count),
+            Flatten()(emb_c_count),
+            Flatten()(emb_d_count),        
+            Flatten()(emb_e_count),        
+            fast_layer1,
+            fast_layer2,
+            fast_layer3,
+            rnn_layer1,
+            rnn_layer2,
+            rnn_layer3,
+        ])
+
+        main_l = Dropout(0.3) (Dense(1024)(main_l))
+        main_l = BatchNormalization()(main_l)
+        main_l = Activation('elu')(main_l)
+
+        main_l = Dropout(0.2) (Dense(32)(main_l))
+        main_l = Activation('elu')(main_l)
+
+        output = Dense(1, activation="sigmoid") (main_l)
+        model = Model([customerid, productid, filediffgcust, file_count, cust_count, prod_count, 
+                    TargetCust_mm, TargetCust_ms, TargetCust_sm, TargetCust_ss,
+                    num_dig, num_a, num_b, num_c, num_d, num_e], output)
+
+        optimizer = Adam(lr=lr, decay=decay)
+        model.compile(loss="binary_crossentropy", optimizer=optimizer)
+
+        return model
 
 
     train_X = data.loc[data['FileID'].isin(train_set['FileID'])].drop(['Target'], axis=1)
